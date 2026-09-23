@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forum Admin - Monte North Foundation</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{font-family:Arial,sans-serif;max-width:1100px;margin:30px auto;padding:0 16px;background:#f7f7f7;color:#222}
+h1{margin-bottom:6px}.muted{color:#666}.status{padding:10px;border-radius:6px;background:#eee;margin:15px 0}
+table{width:100%;border-collapse:collapse;background:#fff}
+th,td{padding:10px;border:1px solid #ddd;text-align:left;vertical-align:top}
+button{padding:8px 12px;margin:2px;cursor:pointer;border:1px solid #bbb;border-radius:5px;background:#fff}
+.actions{white-space:nowrap}.error{color:#b00020}.ok{color:#176b2c}
+.editor{background:#fff;border:1px solid #ddd;border-radius:8px;padding:18px;margin-bottom:22px}
+.editor h2{margin-top:0}.field{margin-bottom:14px}.field label{display:block;font-weight:bold;margin-bottom:6px}
+.field input,.field textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #bbb;border-radius:5px;font:inherit}
+.field textarea{min-height:280px;resize:vertical}.editor-actions{margin-top:12px}
+button.primary{background:#222;color:#fff;border-color:#222}button.danger{color:#b00020}
+</style>
+</head>
+<body>
+<h1>Forum Admin</h1>
+<div id="status" class="status">Checking admin access...</div>
+<section id="panel" hidden>
+<p class="muted">Manage threads. Database RLS protects admin operations.</p>
+<div id="editor" class="editor" hidden>
+  <h2>Edit Thread</h2>
+  <div class="field"><label for="editTitle">Title</label><input id="editTitle" type="text"></div>
+  <div class="field"><label for="editContent">Content</label><textarea id="editContent"></textarea></div>
+  <div class="editor-actions">
+    <button class="primary" id="saveEdit">Save Changes</button>
+    <button id="cancelEdit">Cancel</button>
+  </div>
+</div>
+<div id="threads"></div>
+</section>
+
+<script>
+const SUPABASE_URL = "https://jgcrjdemvpyrnmueynia.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_eTzSlEx85-dU_dPExo-jlQ_2y5pndYe";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+const statusEl=document.getElementById("status");
+const panelEl=document.getElementById("panel");
+const threadsEl=document.getElementById("threads");
+const editorEl=document.getElementById("editor");
+const editTitleEl=document.getElementById("editTitle");
+const editContentEl=document.getElementById("editContent");
+const saveEditEl=document.getElementById("saveEdit");
+const cancelEditEl=document.getElementById("cancelEdit");
+let editingId=null;
+
+function setStatus(message,type=""){statusEl.textContent=message;statusEl.className="status "+type;}
+function esc(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));}
+
+async function checkAdmin(){
+  const {data:{user},error:authError}=await supabaseClient.auth.getUser();
+  if(authError||!user){setStatus("Access denied. Please log in.","error");return;}
+  const {data:profile,error}=await supabaseClient.from("profiles").select("username,role").eq("id",user.id).single();
+  if(error||!profile||profile.role!=="admin"){setStatus("Access denied. Admin account required.","error");return;}
+  setStatus("Admin access verified: "+profile.username,"ok");
+  panelEl.hidden=false;
+  await loadThreads();
+}
+
+async function loadThreads(){
+  threadsEl.textContent="Loading threads...";
+  const {data,error}=await supabaseClient.from("threads")
+    .select("id,title,content,created_at,author_id,profiles(username)")
+    .order("created_at",{ascending:false});
+  if(error){threadsEl.innerHTML='<p class="error">Failed to load threads: '+esc(error.message)+'</p>';return;}
+  if(!data?.length){threadsEl.innerHTML="<p>No threads found.</p>";return;}
+  threadsEl.innerHTML=`<table><thead><tr><th>ID</th><th>Thread</th><th>Author</th><th>Created</th><th>Actions</th></tr></thead><tbody>${data.map(t=>`<tr><td>${esc(t.id)}</td><td><strong>${esc(t.title)}</strong><br>${esc(t.content).slice(0,160)}</td><td>${esc(t.profiles?.username||"Unknown")}</td><td>${esc(new Date(t.created_at).toLocaleString())}</td><td class="actions"><button onclick="editThread(${Number(t.id)})">Edit</button><button onclick="deleteThread(${Number(t.id)})">Delete</button></td></tr>`).join("")}</tbody></table>`;
+}
+
+async function editThread(id){
+  const {data:thread,error}=await supabaseClient.from("threads").select("id,title,content").eq("id",id).single();
+  if(error||!thread){alert("Could not load thread: "+(error?.message||"Unknown error"));return;}
+  editingId=id;
+  editTitleEl.value=thread.title||"";
+  editContentEl.value=thread.content||"";
+  editorEl.hidden=false;
+  editorEl.scrollIntoView({behavior:"smooth",block:"start"});
+  editTitleEl.focus();
+}
+
+saveEditEl.addEventListener("click",async()=>{
+  if(editingId===null)return;
+  const title=editTitleEl.value.trim();
+  const content=editContentEl.value.trim();
+  if(!title||!content){alert("Title and content cannot be empty.");return;}
+  saveEditEl.disabled=true;
+  saveEditEl.textContent="Saving...";
+  const {error}=await supabaseClient.from("threads").update({title,content,updated_at:new Date().toISOString()}).eq("id",editingId);
+  saveEditEl.disabled=false;
+  saveEditEl.textContent="Save Changes";
+  if(error){alert("Update failed: "+error.message);return;}
+  editorEl.hidden=true;
+  editingId=null;
+  await loadThreads();
+});
+
+cancelEditEl.addEventListener("click",()=>{
+  editorEl.hidden=true;
+  editingId=null;
+});
+
+async function deleteThread(id){
+  if(!confirm("Delete this thread and its replies?"))return;
+  const {error}=await supabaseClient.from("threads").delete().eq("id",id);
+  if(error){alert("Delete failed: "+error.message);return;}
+  await loadThreads();
+}
+
+checkAdmin();
+</script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Monte North Foundation Forum</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      color: #222;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 440px;
+      margin: 80px auto;
+      padding: 30px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.08);
+    }
+
+    h1 {
+      margin-top: 0;
+      text-align: center;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 30px;
+    }
+
+    label {
+      display: block;
+      margin: 15px 0 6px;
+      font-weight: bold;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 7px;
+      font-size: 15px;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 22px;
+      padding: 13px;
+      border: 0;
+      border-radius: 7px;
+      background: #111;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #message {
+      margin-top: 18px;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .register {
+      text-align: center;
+      margin-top: 22px;
+    }
+
+    a {
+      color: #0066cc;
+      text-decoration: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <h1>Welcome Back</h1>
+
+    <p class="subtitle">
+      Login to Monte North Foundation Forum
+    </p>
+
+    <form id="loginForm">
+
+      <label for="email">Email</label>
+      <input
+        type="email"
+        id="email"
+        required
+        autocomplete="email"
+      >
+
+      <label for="password">Password</label>
+      <input
+        type="password"
+        id="password"
+        required
+        autocomplete="current-password"
+      >
+
+      <button type="submit">
+        Login
+      </button>
+
+    </form>
+
+    <div id="message"></div>
+
+    <div class="register">
+      Don't have an account?
+      <a href="register.html">Create an account</a>
+    </div>
+
+  </div>
+
+  <script>
+    const SUPABASE_URL =
+      "https://jgcrjdemvpyrnmueynia.supabase.co";
+
+    const SUPABASE_PUBLISHABLE_KEY =
+      "sb_publishable_eTzSlEx85-dU_dPExo-jlQ_2y5pndYe";
+
+    const supabaseClient =
+  supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
+
+    const form = document.getElementById("loginForm");
+    const message = document.getElementById("message");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const email =
+        document.getElementById("email").value.trim();
+
+      const password =
+        document.getElementById("password").value;
+
+      message.textContent = "Logging in...";
+
+      const { data, error } =
+        await supabaseClient.auth.signInWithPassword({
+          email: email,
+          password: password
+        });
+
+      if (error) {
+        message.textContent = error.message;
+        return;
+      }
+
+      message.textContent = "Login successful!";
+
+      setTimeout(() => {
+        window.location.href = "index.html";
+      }, 700);
+    });
+  </script>
+
+</body>
+</html>
+

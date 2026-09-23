@@ -1,0 +1,310 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Forum - Monte North Foundation</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      color: #222;
+    }
+
+    header {
+      background: #111;
+      color: white;
+      padding: 18px 20px;
+    }
+
+    header .inner {
+      max-width: 1000px;
+      margin: auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+
+    header a {
+      color: white;
+      text-decoration: none;
+      margin-left: 12px;
+    }
+
+    main {
+      max-width: 1000px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .hero {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      margin-bottom: 25px;
+    }
+
+    .hero h1 {
+      margin-top: 0;
+    }
+
+    .actions {
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 11px 18px;
+      border: 0;
+      border-radius: 7px;
+      background: #111;
+      color: white;
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    button.secondary {
+      background: #ddd;
+      color: #222;
+    }
+
+    .thread {
+      background: white;
+      padding: 22px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+    }
+
+    .thread h2 {
+      margin-top: 0;
+    }
+
+    .thread h2 a {
+      color: #111;
+      text-decoration: none;
+    }
+
+    .meta {
+      color: #777;
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+
+    #message {
+      margin: 20px 0;
+      color: #666;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="inner">
+    <strong>Monte North Forum</strong>
+
+    <nav>
+      <a href="../index.html">Home</a>
+      <span id="loggedOut">
+        <a href="login.html">Login</a>
+        <a href="register.html">Register</a>
+      </span>
+
+      <span id="loggedIn" class="hidden">
+        <a href="create-thread.html">New Thread</a>
+        <a href="#" id="logout">Logout</a>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <section class="hero">
+    <h1>Community Forum</h1>
+    <p>
+      Welcome to the Monte North Foundation community forum.
+      Share ideas, ask questions and connect with others.
+    </p>
+
+    <div class="actions">
+      <a href="register.html" id="joinButton">
+        <button>Join the Forum</button>
+      </a>
+
+      <a href="create-thread.html" id="threadButton" class="hidden">
+        <button>Create a Thread</button>
+      </a>
+    </div>
+  </section>
+
+  <h2>Latest Discussions</h2>
+
+  <div id="message">
+    Loading discussions...
+  </div>
+
+  <div id="threads"></div>
+
+</main>
+
+<script>
+  const SUPABASE_URL =
+    "https://jgcrjdemvpyrnmueynia.supabase.co";
+
+  const SUPABASE_PUBLISHABLE_KEY =
+    "sb_publishable_eTzSlEx85-dU_dPExo-jlQ_2y5pndYe";
+
+  const supabaseClient = supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY
+    );
+
+  const loggedOut =
+    document.getElementById("loggedOut");
+
+  const loggedIn =
+    document.getElementById("loggedIn");
+
+  const joinButton =
+    document.getElementById("joinButton");
+
+  const threadButton =
+    document.getElementById("threadButton");
+
+  const message =
+    document.getElementById("message");
+
+  const threadsContainer =
+    document.getElementById("threads");
+
+  async function checkUser() {
+
+    const {
+      data: { user }
+    } = await supabaseClient.auth.getUser();
+
+    if (user) {
+      loggedOut.classList.add("hidden");
+      loggedIn.classList.remove("hidden");
+      joinButton.classList.add("hidden");
+      threadButton.classList.remove("hidden");
+    }
+  }
+
+  async function loadThreads() {
+
+    const { data, error } = await supabaseClient
+      .from("threads")
+      .select(`
+        id,
+        title,
+        content,
+        created_at,
+        profiles (
+          username
+        )
+      `)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      message.textContent =
+        "Unable to load discussions.";
+
+      console.error(error);
+      return;
+    }
+
+    message.textContent = "";
+
+    if (!data || data.length === 0) {
+      message.textContent =
+        "No discussions yet. Be the first to create one!";
+      return;
+    }
+
+    threadsContainer.innerHTML = "";
+
+    data.forEach(thread => {
+
+      const article =
+        document.createElement("article");
+
+      article.className = "thread";
+
+      const title =
+        document.createElement("h2");
+
+      const link =
+        document.createElement("a");
+
+      link.href =
+        "thread.html?id=" + thread.id;
+
+      link.textContent =
+        thread.title;
+
+      title.appendChild(link);
+
+      const meta =
+        document.createElement("div");
+
+      meta.className = "meta";
+
+      const username =
+        thread.profiles?.username || "User";
+
+      meta.textContent =
+        "Posted by " +
+        username +
+        " â€¢ " +
+        new Date(thread.created_at)
+          .toLocaleString();
+
+      const content =
+        document.createElement("p");
+
+      content.textContent =
+        thread.content.length > 250
+          ? thread.content.substring(0, 250) + "..."
+          : thread.content;
+
+      article.appendChild(title);
+      article.appendChild(meta);
+      article.appendChild(content);
+
+      threadsContainer.appendChild(article);
+    });
+  }
+
+  document
+    .getElementById("logout")
+    .addEventListener("click", async (event) => {
+
+      event.preventDefault();
+
+      await supabaseClient.auth.signOut();
+
+      window.location.reload();
+    });
+
+  checkUser();
+  loadThreads();
+</script>
+
+</body>
+</html>
+
+

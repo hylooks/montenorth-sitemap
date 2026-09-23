@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Create Thread - Monte North Foundation</title>
+<style>
+body{font-family:Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 20px;line-height:1.6}
+nav{margin-bottom:30px} nav a{margin-right:15px}
+input,textarea{width:100%;box-sizing:border-box;padding:10px;margin:6px 0 16px}
+textarea{min-height:260px;resize:vertical}
+button{padding:10px 16px;cursor:pointer;margin-right:8px}
+.link-popup{
+  display:none;
+  position:absolute;
+  z-index:1000;
+  background:#fff;
+  border:1px solid #ccc;
+  border-radius:6px;
+  padding:6px 10px;
+  box-shadow:0 2px 8px rgba(0,0,0,.15);
+  cursor:pointer;
+  font-size:14px;
+}
+#message{margin-top:15px}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<nav>
+<a href="index.html">Forum</a>
+<a href="login.html">Login</a>
+<a href="register.html">Register</a>
+</nav>
+
+<h1>Create a Thread</h1>
+
+<form id="threadForm">
+<label>Title</label>
+<input id="title" required maxlength="200">
+
+<label>Message</label>
+<textarea id="content" required placeholder="Write your message here..."></textarea>
+<div id="linkPopup" class="link-popup">Insert Link</div>
+
+<button type="submit">Create Thread</button>
+</form>
+
+<div id="message"></div>
+
+<script>
+const SUPABASE_URL = "https://jgcrjdemvpyrnmueynia.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_eTzSlEx85-dU_dPExo-jlQ_2y5pndYe";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+const form = document.getElementById("threadForm");
+const titleInput = document.getElementById("title");
+const contentInput = document.getElementById("content");
+const message = document.getElementById("message");
+
+async function requireUser(){
+  const { data, error } = await supabaseClient.auth.getUser();
+  if (error || !data.user) {
+    window.location.href = "login.html";
+    return null;
+  }
+  return data.user;
+}
+
+const linkPopup = document.getElementById("linkPopup");
+let selectedStart = 0;
+let selectedEnd = 0;
+
+function showLinkPopup() {
+  const start = contentInput.selectionStart;
+  const end = contentInput.selectionEnd;
+
+  if (start === end) {
+    linkPopup.style.display = "none";
+    return;
+  }
+
+  selectedStart = start;
+  selectedEnd = end;
+
+  const rect = contentInput.getBoundingClientRect();
+  linkPopup.style.left = (window.scrollX + rect.left + 10) + "px";
+  linkPopup.style.top = (window.scrollY + rect.top - 42) + "px";
+  linkPopup.style.display = "block";
+}
+
+contentInput.addEventListener("mouseup", showLinkPopup);
+contentInput.addEventListener("keyup", showLinkPopup);
+
+document.addEventListener("mousedown", (event) => {
+  if (event.target !== contentInput && event.target !== linkPopup) {
+    linkPopup.style.display = "none";
+  }
+});
+
+linkPopup.addEventListener("click", () => {
+  const selectedText = contentInput.value.slice(selectedStart, selectedEnd);
+
+  const url = prompt("URL link (contoh: https://example.com):");
+  if (url === null) return;
+
+  const cleanUrl = url.trim();
+  if (!/^https?:\/\/\S+$/i.test(cleanUrl)) {
+    alert("URL harus diawali http:// atau https://");
+    return;
+  }
+
+  const markdown = "[" + selectedText + "](" + cleanUrl + ")";
+  contentInput.value =
+    contentInput.value.slice(0, selectedStart) +
+    markdown +
+    contentInput.value.slice(selectedEnd);
+
+  contentInput.focus();
+  const newCursor = selectedStart + markdown.length;
+  contentInput.selectionStart = newCursor;
+  contentInput.selectionEnd = newCursor;
+  linkPopup.style.display = "none";
+});
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  message.textContent = "Publishing...";
+
+  const user = await requireUser();
+  if (!user) return;
+
+  const title = titleInput.value.trim();
+  const content = contentInput.value.trim();
+
+  const { data, error } = await supabaseClient
+    .from("threads")
+    .insert({
+      author_id: user.id,
+      title: title,
+      content: content
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    message.textContent = error.message;
+    return;
+  }
+
+  window.location.href = "thread.html?id=" + data.id;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://jgcrjdemvpyrnmueynia.supabase.co/functions/v1/hello-world
