@@ -1,4 +1,4 @@
-name: Update sitemap
+name: Update sitemap and deploy
 
 on:
   workflow_dispatch:
@@ -35,3 +35,11 @@ jobs:
             git commit -m "Update sitemap"
             git push
           fi
+
+      - name: Install Surge
+        run: npm install -g surge
+
+      - name: Deploy website to Surge
+        env:
+          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
+        run: surge . montenorthfoundation.com
